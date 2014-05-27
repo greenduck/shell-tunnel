@@ -8,6 +8,7 @@
 #include <termios.h>
 #include <sys/select.h>
 #include <sys/time.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -43,6 +44,7 @@ int main(int argc, char *argv[])
 	switch (mode)
 	{
 	case MODE_DAEMON:
+		unlink(SERVER_PATH);
 		signal(SIGCHLD, SIG_IGN);
 		server_mode();
 		break;
@@ -94,6 +96,13 @@ void server_mode(void)
 	err = listen(sockfd, 1);
 	if (err < 0) {
 		perror("could not listen to socket");
+		goto out_err_1;
+	}
+
+	/* change socket mode to enable any user to connect */
+	err = chmod(SERVER_PATH, 0666);
+	if (err < 0) {
+		perror("could not change socket mode");
 		goto out_err_1;
 	}
 
