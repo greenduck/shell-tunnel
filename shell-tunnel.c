@@ -71,6 +71,7 @@ void server_mode(void)
 	int sockfd;
 	int new_sockfd;
 	struct sockaddr_un serveraddr;
+	pid_t pid;
 
 	sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (sockfd < 0) {
@@ -94,16 +95,36 @@ void server_mode(void)
 		goto out_err_1;
 	}
 
-	/* --- fork() --- */
-	new_sockfd = accept(sockfd, NULL, NULL);
-	if (new_sockfd < 0) {
-		perror("could not accept connection");
-		goto out_err_1;
+	while (true) {
+		new_sockfd = accept(sockfd, NULL, NULL);
+		if (new_sockfd < 0) {
+			perror("could not accept connection");
+			goto out_err_1;
+		}
+
+		pid = fork();
+		if (pid < 0) {
+			perror("could not fork process");
+			goto out_err_2;
+		}
+		else if (pid > 0) {
+			/* parent process */
+			close(new_sockfd);
+			continue;
+		}
+		else {
+			/* child process */
+			close(sockfd);
+
+			/* business logic */
+			echo(new_sockfd);
+
+			close(new_sockfd);
+			return;
+		}
 	}
 
-	/* business logic */
-	echo(new_sockfd);
-
+out_err_2:
 	close(new_sockfd);
 
 out_err_1:
