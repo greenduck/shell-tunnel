@@ -4,6 +4,7 @@
 #include <libgen.h>
 
 #include <unistd.h>
+#include <signal.h>
 #include <termios.h>
 #include <sys/select.h>
 #include <sys/time.h>
@@ -42,6 +43,7 @@ int main(int argc, char *argv[])
 	switch (mode)
 	{
 	case MODE_DAEMON:
+		signal(SIGCHLD, SIG_IGN);
 		server_mode();
 		break;
 	case MODE_CLIENT:
