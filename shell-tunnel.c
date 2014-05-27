@@ -146,7 +146,14 @@ out_err_1:
 
 static void shell(int sockfd)
 {
+	int err;
 	char *const execargv[] = EXEC_ARGV;
+
+	err = setsid();
+	if (err < 0) {
+		perror("could not create a new session");
+		return;
+	}
 
 	dup2(sockfd, STDIN_FILENO);
 	dup2(sockfd, STDOUT_FILENO);
