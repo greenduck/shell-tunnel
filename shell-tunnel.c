@@ -146,18 +146,23 @@ out_err_1:
 static void echo(int sockfd)
 {
 	char buff;
-	int len;
+
+	dup2(sockfd, STDIN_FILENO);
+	dup2(sockfd, STDOUT_FILENO);
+	dup2(sockfd, STDERR_FILENO);
+	close(sockfd);
 
 	while (true) {
-		len = recv(sockfd, &buff, 1, 0);
-		if (len == 0)
+		buff = getchar();
+		if (buff == EOF)
 			break;
 
 		/* processing */
 		if ((buff >= 'a') && (buff <= 'z'))
 			buff += 'A' - 'a';
 
-		send(sockfd, &buff, 1, 0);
+		putchar(buff);
+		fflush(stdout);
 	}
 }
 
