@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <termios.h>
+#include <pty.h>
 #include <sys/select.h>
 #include <sys/time.h>
 #include <sys/stat.h>
@@ -20,7 +21,7 @@ enum {MODE_UNDEF, MODE_DAEMON, MODE_CLIENT};
 enum {CONS_CONFIG, CONS_RESTORE};
 
 static void server_mode(void);
-static void shell(int sockfd);
+static void spawn_shell(int sockfd);
 static void client_mode(bool local_echo);
 static int console_proxy(int sockfd, bool local_echo);
 static int byte_interchange(int in_a, int out_a, int in_b, int out_b);
@@ -129,7 +130,7 @@ void server_mode(void)
 			close(sockfd);
 
 			/* business logic */
-			shell(new_sockfd);
+			spawn_shell(new_sockfd);
 
 			close(new_sockfd);
 			return;
@@ -144,7 +145,7 @@ out_err_1:
 	unlink(SERVER_PATH);
 }
 
-static void shell(int sockfd)
+static void shell(int fd)
 {
 	int err;
 	char *const execargv[] = EXEC_ARGV;
@@ -155,13 +156,51 @@ static void shell(int sockfd)
 		return;
 	}
 
-	dup2(sockfd, STDIN_FILENO);
-	dup2(sockfd, STDOUT_FILENO);
-	dup2(sockfd, STDERR_FILENO);
-	close(sockfd);
+	dup2(fd, STDIN_FILENO);
+	dup2(fd, STDOUT_FILENO);
+	dup2(fd, STDERR_FILENO);
+
+	err = ioctl(fd, TIOCSCTTY, NULL);
+	if (err < 0) {
+		perror("could not issue IOCTL");
+		return;
+	}
+
+	close(fd);
 
 	execvp(execargv[0], execargv);
 	perror("could not exec shell");
+}
+
+static void spawn_shell(int sockfd)
+{
+	int err;
+	int mst, slv;
+
+	err = openpty(&mst, &slv, NULL, NULL, NULL);
+	if (err < 0) {
+		perror("could not open pseudo terminal");
+		return;
+	}
+
+	switch (fork())
+	{
+	case -1:
+		perror("could not fork process");
+		return;
+
+	case 0:
+		/* child process */
+		close(mst);
+		shell(slv);
+		break;
+
+	default:
+		/* parent process */
+		close(slv);
+		byte_interchange(sockfd, sockfd, mst, mst);
+		close(mst);
+	}
 }
 
 /*
