@@ -46,6 +46,10 @@ int main(int argc, char *argv[])
 	switch (mode)
 	{
 	case MODE_DAEMON:
+		/* detach from calling process */
+		if (fork() != 0)
+			return 0;
+
 		unlink(SERVER_PATH);
 		signal(SIGCHLD, SIG_IGN);
 		server_mode();
