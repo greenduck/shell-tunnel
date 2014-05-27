@@ -14,8 +14,13 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
+#ifdef ANDROID
+#define SERVER_PATH "/data/misc/shell-tunnel-socket"
+#define EXEC_ARGV	{"/system/bin/sh", "-i", NULL}
+#else
 #define SERVER_PATH "/tmp/shell-tunnel-socket"
 #define EXEC_ARGV	{"/bin/bash", "-i", NULL}
+#endif
 
 enum {MODE_UNDEF, MODE_DAEMON, MODE_CLIENT};
 enum {CONS_CONFIG, CONS_RESTORE};
