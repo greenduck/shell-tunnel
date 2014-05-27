@@ -14,12 +14,13 @@
 #include <sys/un.h>
 
 #define SERVER_PATH "/tmp/shell-tunnel-socket"
+#define EXEC_ARGV	{"/bin/bash", "-i", NULL}
 
 enum {MODE_UNDEF, MODE_DAEMON, MODE_CLIENT};
 enum {CONS_CONFIG, CONS_RESTORE};
 
 static void server_mode(void);
-static void echo(int sockfd);
+static void shell(int sockfd);
 static void client_mode(bool local_echo);
 static int console_proxy(int sockfd, bool local_echo);
 static int byte_interchange(int in_a, int out_a, int in_b, int out_b);
@@ -128,7 +129,7 @@ void server_mode(void)
 			close(sockfd);
 
 			/* business logic */
-			echo(new_sockfd);
+			shell(new_sockfd);
 
 			close(new_sockfd);
 			return;
@@ -143,27 +144,17 @@ out_err_1:
 	unlink(SERVER_PATH);
 }
 
-static void echo(int sockfd)
+static void shell(int sockfd)
 {
-	char buff;
+	char *const execargv[] = EXEC_ARGV;
 
 	dup2(sockfd, STDIN_FILENO);
 	dup2(sockfd, STDOUT_FILENO);
 	dup2(sockfd, STDERR_FILENO);
 	close(sockfd);
 
-	while (true) {
-		buff = getchar();
-		if (buff == EOF)
-			break;
-
-		/* processing */
-		if ((buff >= 'a') && (buff <= 'z'))
-			buff += 'A' - 'a';
-
-		putchar(buff);
-		fflush(stdout);
-	}
+	execvp(execargv[0], execargv);
+	perror("could not exec shell");
 }
 
 /*
