@@ -1,0 +1,51 @@
+1. Overview
+
+Tunnel shell through UNIX socket.
+For example, server run as root will export root shell to any client.
+As of Android versions 4.3, 4.4, this technique is able to serve as basis for
+root kit.
+
+2. Running
+
+2.a. Server side
+Run as root (on Android it can be run from /system/etc/install-recovery.sh):
+
+ # shell-tunnel --daemon
+
+(*) No need in ampersand, the shell daemon will run in background.
+
+2.b. Client side
+
+ $ shell-tunnel --client
+
+(*) Add --echo argument to generate local echo - usually not required.
+
+3. Building
+
+ $ gcc shell-tunnel.c -Wall -O2 -lutil -static -DANDROID -o shell-tunnel
+
+(*) -static flag is not required per se, but is appropriate when
+    cross-compiling for ARM.
+(*) When building for Android, add -DANDROID to compilation flags.
+(*) Beyond being executable, no special flags are required.
+
+4. Theory of operation
+
+|-------|                      |--------|
+| root  |<--stdin--<--socket<--| user   |
+| shell |-->stdout->--socket-->| client |
+|-------|                      |--------|
+    ^                              /
+    |                         ---/
+   fork                   ---/
+    |                 ---/
+|--------|        ---/
+| root   |    ---/
+| shell  |<--/
+| daemon |
+|--------|
+
+(*) Normally, the root shell process is the child of calling process. However,
+    in shell-tunnel, the root shell process is the child of shell daemon
+    process.
+
